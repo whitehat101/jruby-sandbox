@@ -129,6 +129,7 @@ module Sandbox
       ==
       ===
       =~
+      !~
       Array
       binding
       block_given?
