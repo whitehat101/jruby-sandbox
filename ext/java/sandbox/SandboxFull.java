@@ -2,6 +2,10 @@ package sandbox;
 
 import java.util.Collection;
 import java.util.Map;
+import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PipedOutputStream;
+import java.io.PrintStream;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -9,6 +13,7 @@ import org.jruby.RubyInstanceConfig;
 import org.jruby.RubyKernel;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.CompatVersion;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
@@ -22,6 +27,7 @@ import org.jruby.exceptions.RaiseException;
 @JRubyClass(name="Sandbox::Full")
 public class SandboxFull extends RubyObject {
   private Ruby wrapped;
+  private ByteArrayOutputStream stdOut;
 
   public SandboxFull(Ruby runtime, RubyClass type) {
     super(runtime, type);
@@ -29,12 +35,19 @@ public class SandboxFull extends RubyObject {
   }
 
   @JRubyMethod
+  public RubyString getStdOut() {
+    return wrapped.newString(stdOut.toString());
+  }
+
+  @JRubyMethod
   public IRubyObject reload() {
+
     RubyInstanceConfig cfg = new RubyInstanceConfig();
     cfg.setObjectSpaceEnabled(getRuntime().getInstanceConfig().isObjectSpaceEnabled());
     cfg.setInput(getRuntime().getInstanceConfig().getInput());
-    cfg.setOutput(getRuntime().getInstanceConfig().getOutput());
     cfg.setError(getRuntime().getInstanceConfig().getError());
+    stdOut = new ByteArrayOutputStream();
+    cfg.setOutput(new PrintStream(stdOut));
     cfg.setCompatVersion(CompatVersion.RUBY1_9);
     cfg.setScriptFileName("(sandbox)");
 
@@ -53,7 +66,8 @@ public class SandboxFull extends RubyObject {
   public IRubyObject eval(IRubyObject str) {
     try {
       IRubyObject result = wrapped.evalScriptlet(str.asJavaString(), wrapped.getCurrentContext().getCurrentScope());
-      return unbox(result);
+      IRubyObject unboxedResult = unbox(result);
+      return unboxedResult;
     } catch (RaiseException e) {
       String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
       String path = e.getException().type().getName();

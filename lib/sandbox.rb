@@ -16,6 +16,15 @@ module Sandbox
     end
   end
 
+  class Full
+    Result = Struct.new(:output, :result, :exception)
+    def eval_with_result(code)
+      result = eval_with_timeout(code)
+      Result.new(getStdOut, result)
+    end
+
+  end
+
   class Safe < Full
     def activate!
       activate_fakefs
@@ -65,6 +74,7 @@ module Sandbox
 
       FakeFS::FileSystem.clear
     end
+
 
     def eval_with_timeout(code, timeout=10)
       require 'timeout'
@@ -177,6 +187,7 @@ module Sandbox
       proc
       protected_methods
       public_methods
+      puts
       raise
       remove_instance_variable
       respond_to?

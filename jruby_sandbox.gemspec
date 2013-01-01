@@ -5,7 +5,7 @@ require 'sandbox/version'
 Gem::Specification.new do |s|
   s.name        = 'jruby_sandbox'
   s.version     = Sandbox::VERSION
-  s.platform    = 'java'
+  #s.platform    = 'java'
   s.authors     = ['Dray Lacy', 'Eric Allam']
   s.email       = ['dray@envylabs.com', 'eric@envylabs.com']
   s.homepage    = 'http://github.com/omghax/jruby-sandbox'
@@ -22,6 +22,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'fakefs'
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rake-compiler'
-  s.add_development_dependency 'rspec'
+  s.add_development_dependency 'rspec', "~>2.12"
   s.add_development_dependency 'yard'
 end
