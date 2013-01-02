@@ -23,6 +23,18 @@ module Sandbox
       Result.new(getStdOut, result)
     end
 
+    def eval_with_timeout(code, timeout=10)
+      require 'timeout'
+
+      timeout_code = <<-RUBY
+        Timeout.timeout(#{timeout}) do
+          #{code}
+        end
+      RUBY
+
+      eval timeout_code
+    end
+
   end
 
   class Safe < Full
@@ -76,17 +88,6 @@ module Sandbox
     end
 
 
-    def eval_with_timeout(code, timeout=10)
-      require 'timeout'
-
-      timeout_code = <<-RUBY
-        Timeout.timeout(#{timeout}) do
-          #{code}
-        end
-      RUBY
-
-      eval timeout_code
-    end
 
     IO_S_METHODS = %w[
       new
