@@ -28,6 +28,16 @@ module Sandbox
 
       timeout_code = <<-RUBY
         Timeout.timeout(#{timeout}) do
+        
+          ObjectSpace.instance_eval do
+            def each_object(type)
+              if type == Class
+                super.reject{|x| x.to_s == "File"}
+              else
+                super
+              end
+            end
+          end
           #{code}
         end
       RUBY
@@ -53,6 +63,7 @@ module Sandbox
       keep_methods(:FalseClass, FALSECLASS_METHODS)
       keep_methods(:Enumerable, ENUMERABLE_METHODS)
       keep_methods(:String, STRING_METHODS)
+
     end
 
     def activate_fakefs
