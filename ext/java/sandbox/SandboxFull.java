@@ -71,8 +71,7 @@ public class SandboxFull extends RubyObject {
     } catch (RaiseException e) {
       String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
       String path = e.getException().type().getName();
-      RubyClass eSandboxException = (RubyClass) getRuntime().getClassFromPath("Sandbox::SandboxException");
-      throw new RaiseException(getRuntime(), eSandboxException, path + ": " + msg, false);
+      throw rubyException( getRuntime().getNil(), "Sandbox::SandboxException", path + ": " + msg);
     } catch (Exception e) {
       e.printStackTrace();
       getRuntime().getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);
@@ -295,6 +294,11 @@ public class SandboxFull extends RubyObject {
       object = (IRubyObject) arg.getInstanceVariables().fastGetInstanceVariable("__box__");
     }
     return object;
+  }
+
+  protected static RaiseException rubyException(IRubyObject recv, String klass, String message) {
+    Ruby runtime = recv.getRuntime();
+    return new RaiseException( runtime, (RubyClass) runtime.getClassFromPath(klass), message, false );
   }
 
   private void linkObject(IRubyObject runtimeObject, IRubyObject wrappedObject) {
