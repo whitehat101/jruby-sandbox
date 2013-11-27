@@ -57,12 +57,6 @@ public class SandboxFull extends RubyObject {
     wrapped = Ruby.newInstance(cfg);
     profile.security(wrapped);
 
-    // Use UTF-8
-    // Set the encoding of the sandbox to "java default", utf-8
-    org.jcodings.Encoding encoding = wrapped.getEncodingService().getJavaDefault();
-    wrapped.setDefaultExternalEncoding(encoding);
-    wrapped.setDefaultInternalEncoding(encoding);
-
     RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
     cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
 
@@ -72,7 +66,7 @@ public class SandboxFull extends RubyObject {
   @JRubyMethod(required=1)
   public IRubyObject eval(IRubyObject str) {
     try {
-      IRubyObject result = wrapped.evalScriptlet(str.asJavaString(), wrapped.getCurrentContext().getCurrentScope());
+      IRubyObject result = wrapped.evalScriptlet("#encoding: utf-8\n"+str.asJavaString(), wrapped.getCurrentContext().getCurrentScope());
       IRubyObject unboxedResult = unbox(result);
       return unboxedResult;
     } catch (RaiseException e) {
