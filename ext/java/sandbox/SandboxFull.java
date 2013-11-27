@@ -55,6 +55,13 @@ public class SandboxFull extends RubyObject {
     cfg.setProfile(profile);
 
     wrapped = Ruby.newInstance(cfg);
+    profile.security(wrapped);
+
+    // Use UTF-8
+    // Set the encoding of the sandbox to "java default", utf-8
+    org.jcodings.Encoding encoding = wrapped.getEncodingService().getJavaDefault();
+    wrapped.setDefaultExternalEncoding(encoding);
+    wrapped.setDefaultInternalEncoding(encoding);
 
     RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
     cBoxedClass.defineAnnotatedMethods(BoxedClass.class);

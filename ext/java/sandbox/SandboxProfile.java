@@ -1,10 +1,12 @@
 package sandbox;
 
+import org.jruby.Ruby;
 import org.jruby.Profile;
 import org.jruby.runtime.builtin.IRubyObject;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Arrays;
+import java.util.Iterator;
 
 public class SandboxProfile implements Profile {
   private IRubyObject sandbox;
@@ -15,6 +17,13 @@ public class SandboxProfile implements Profile {
 
   public IRubyObject getSandbox() {
     return sandbox;
+  }
+
+  public void security(Ruby wrapped) {
+    wrapped.evalScriptlet(
+      "$\".unshift *%w(" + join(RequireBlacklist, " ") + ")",
+      wrapped.getCurrentContext().getCurrentScope()
+    );
   }
 
   private static final Set<String> ClassBlacklist = new HashSet<String>(Arrays.asList(
@@ -44,4 +53,20 @@ public class SandboxProfile implements Profile {
   // public boolean allowModule  (String name) { return true; }
   // public boolean allowLoad    (String name) { return true; }
   // public boolean allowRequire (String name) { return true; }
+
+  private static String join(Set<String> set, String sep) {
+    String result = null;
+    if(set != null) {
+        StringBuilder sb = new StringBuilder();
+        Iterator<String> it = set.iterator();
+        if(it.hasNext()) {
+            sb.append(it.next());
+        }
+        while(it.hasNext()) {
+            sb.append(sep).append(it.next());
+        }
+        result = sb.toString();
+    }
+    return result;
+}
 }

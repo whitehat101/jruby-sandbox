@@ -1,10 +1,10 @@
 require 'sandbox/sandbox'
 require 'sandbox/version'
-require 'fakefs/safe'
 require 'timeout'
 
 # unfortunately, the authors of FakeFS used `extend self` in FileUtils, instead of `module_function`.
 # I fixed it for them
+require 'fakefs/safe'
 (FakeFS::FileUtils.methods - Module.methods - Kernel.methods).each do |module_method_name|
   FakeFS::FileUtils.send(:module_function, module_method_name)
 end
@@ -12,14 +12,12 @@ end
 
 module Sandbox
 
-  class << self
-    def new
-      Full.new
-    end
+  def self.new
+    Full.new
+  end
 
-    def safe
-      Safe.new
-    end
+  def self.safe
+    Safe.new
   end
 
   class Full
