@@ -3,8 +3,14 @@ require 'sandbox/version'
 require 'fakefs/safe'
 require 'timeout'
 
+# unfortunately, the authors of FakeFS used `extend self` in FileUtils, instead of `module_function`.
+# I fixed it for them
+(FakeFS::FileUtils.methods - Module.methods - Kernel.methods).each do |module_method_name|
+  FakeFS::FileUtils.send(:module_function, module_method_name)
+end
+
+
 module Sandbox
-  PRELUDE = File.expand_path('../sandbox/prelude.rb', __FILE__).freeze # :nodoc:
 
   class << self
     def new
@@ -57,30 +63,20 @@ module Sandbox
     end
 
     def activate_fakefs
-      # require 'fileutils'
-
-      # unfortunately, the authors of FakeFS used `extend self` in FileUtils, instead of `module_function`.
-      # I fixed it for them
-      (FakeFS::FileUtils.methods - Module.methods - Kernel.methods).each do |module_method_name|
-        FakeFS::FileUtils.send(:module_function, module_method_name)
-      end
-
+      # Bring the FakeFS into the sandbox
       import  FakeFS
       ref     FakeFS::Dir
       ref     FakeFS::File
       ref     FakeFS::FileTest
+      ref     FakeFS::Pathname
       import  FakeFS::FileUtils #import FileUtils because it is a module
 
       eval <<-RUBY
         Object.class_eval do
-          # remove_const(:Dir)
-          # remove_const(:File)
-          # remove_const(:FileTest)
-          # remove_const(:FileUtils)
-
           const_set(:Dir,       FakeFS::Dir)
           const_set(:File,      FakeFS::File)
           const_set(:FileUtils, FakeFS::FileUtils)
+          const_set(:Pathname,  FakeFS::Pathname)
           const_set(:FileTest,  FakeFS::FileTest)
         end
       RUBY

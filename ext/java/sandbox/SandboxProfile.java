@@ -24,7 +24,7 @@ public class SandboxProfile implements Profile {
        new String[] {"FileTest"}
   ));
   private static final Set<String> RequireBlacklist = new HashSet<String>(Arrays.asList(
-       new String[] {"rubygems", "fileutils"}
+       new String[] {"rubygems", "fileutils","pathname"}
   ));
   private static final Set<String> LoadBlacklist = new HashSet<String>(Arrays.asList(
        new String[] {}
