@@ -77,7 +77,7 @@ public class SandboxFull extends RubyObject {
     } catch (RaiseException e) {
       String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
       String path = e.getException().type().getName();
-      throw rubyException( getRuntime().getNil(), "Sandbox::SandboxException", path + ": " + msg);
+      throw rubyException( getRuntime().getNil(), "Sandbox::Exception", path + ": " + msg);
     } catch (Exception e) {
       e.printStackTrace();
       getRuntime().getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);

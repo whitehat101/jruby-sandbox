@@ -22,7 +22,7 @@ public class SandboxService implements BasicLibraryService {
     RubyClass cSandboxFull = mSandbox.defineClassUnder("Full", runtime.getObject(), FULL_ALLOCATOR);
     cSandboxFull.defineAnnotatedMethods(SandboxFull.class);
 
-    RubyClass cSandboxException = mSandbox.defineClassUnder("SandboxException", runtime.getException(), runtime.getException().getAllocator());
+    RubyClass cSandboxException = mSandbox.defineClassUnder("Exception", runtime.getRuntimeError(), runtime.getRuntimeError().getAllocator());
   }
 
   protected static final ObjectAllocator FULL_ALLOCATOR = new ObjectAllocator() {

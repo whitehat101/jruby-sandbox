@@ -45,32 +45,32 @@ yet).
 Sandbox::Safe exposes an `#activate!` method which will lock down the sandbox, removing unsafe methods.  Before calling `#activate!`, Sandbox::Safe is the same as Sandbox::Full.
 
     >> require 'sandbox'
-    => true 
+    => true
     >> sand = Sandbox.safe
-    => #<Sandbox::Safe:0x17072b90> 
+    => #<Sandbox::Safe:0x17072b90>
     >> sand.eval %{`echo HELLO`}
-    => "HELLO\n" 
-    >> sand.activate! 
+    => "HELLO\n"
+    >> sand.activate!
     >> sand.eval %{`echo HELLO`}
-    Sandbox::SandboxException: NoMethodError: undefined method ``' for main:Object
+    Sandbox::Exception: NoMethodError: undefined method ``' for main:Object
 
 Sandbox::Safe works by whitelisting methods to keep, and removing the rest.  Checkout sandbox.rb for which methods are kept.
 
-Sandbox::Safe.activate! will also isolate the sandbox environment from the filesystem using FakeFS. 
+Sandbox::Safe.activate! will also isolate the sandbox environment from the filesystem using FakeFS.
 
      >> require 'sandbox'
-     => true 
+     => true
      >> s = Sandbox.safe
-     => #<Sandbox::Safe:0x3fdb8a73> 
+     => #<Sandbox::Safe:0x3fdb8a73>
      >> s.eval('Dir["/"]')
-     => ["/"] 
+     => ["/"]
      >> s.eval('Dir["/*"]')
-     => ["/Applications", "/bin", "/cores", "/dev", etc.] 
+     => ["/Applications", "/bin", "/cores", "/dev", etc.]
      > s.activate!
      >> s.eval('Dir["/*"]')
-     => [] 
+     => []
      > Dir['/*']
-     => ["/Applications", "/bin", "/cores", "/dev", etc.] 
+     => ["/Applications", "/bin", "/cores", "/dev", etc.]
 
 ## Known Issues / TODOs
 

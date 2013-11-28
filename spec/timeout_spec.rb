@@ -9,7 +9,7 @@ describe Sandbox do
     it 'should timeout' do
       expect {
         subject.eval_with_timeout('sleep(0.25)', 0.2)
-      }.to raise_error(Sandbox::SandboxException, /Timeout::Error/)
+      }.to raise_error(Sandbox::Exception, /TimeoutError/)
     end
   end
 end

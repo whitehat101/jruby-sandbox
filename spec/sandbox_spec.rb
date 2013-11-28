@@ -26,13 +26,13 @@ describe Sandbox do
 
       expect {
         subject.eval('`echo hello`')
-      }.to raise_error(Sandbox::SandboxException)
+      }.to raise_error(Sandbox::Exception)
     end
 
     it "should activate FakeFS inside the sandbox (and not allow it to be deactivated)" do
       expect {
         subject.eval('File')
-      }.to raise_error(Sandbox::SandboxException, /NameError: uninitialized constant File/)
+      }.to raise_error(Sandbox::Exception, /NameError: uninitialized constant File/)
 
       subject.activate!
 
@@ -40,7 +40,7 @@ describe Sandbox do
 
       expect {
         subject.eval(%{File.read('#{foo}')})
-      }.to raise_error(Sandbox::SandboxException, /Errno::ENOENT: No such file or directory/)
+      }.to raise_error(Sandbox::Exception, /Errno::ENOENT: No such file or directory/)
 
       subject.eval('File').      should == FakeFS::File
       subject.eval('Dir').       should == FakeFS::Dir
@@ -52,13 +52,18 @@ describe Sandbox do
 
       expect {
         subject.eval(%{File.read('#{foo}')})
-      }.to raise_error(Sandbox::SandboxException, /Errno::ENOENT: No such file or directory/)
+      }.to raise_error(Sandbox::Exception, /Errno::ENOENT: No such file or directory/)
 
       subject.eval(%{File.open('/bar.txt', 'w') {|file| file << "bar" }})
 
       expect {
         subject.eval(%{FileUtils.cp('/bar.txt', '/baz.txt')})
-      }.to_not raise_error(Sandbox::SandboxException, /NoMethodError/)
+      }.to_not raise_error(Sandbox::Exception, /NoMethodError/)
+    end
+
+    it "has the correct Encoding" do
+      subject.activate!
+      subject.eval("__ENCODING__.to_s").should == "UTF-8"
     end
   end
 
@@ -87,7 +92,7 @@ describe Sandbox do
 
         expect {
           subject.eval_with_timeout(long_code, 1)
-        }.to raise_error(Sandbox::SandboxException, /Timeout/)
+        }.to raise_error(Sandbox::Exception, /TimeoutError/)
       end
     end
 
@@ -103,7 +108,7 @@ describe Sandbox do
           Timeout.timeout(3) do
             subject.eval_with_timeout(long_code, 1)
           end
-        }.to raise_error(Sandbox::SandboxException, /Timeout/)
+        }.to raise_error(Sandbox::Exception, /TimeoutError/)
       end
     end
   end
@@ -165,11 +170,11 @@ describe Sandbox do
           subject.eval %{
             (0..1000).to_a.inject({}) {|h,i| h[i] = "HELLO WORLD"; h }
           }
-        }.to_not raise_error(Sandbox::SandboxException)
+        }.to_not raise_error(Sandbox::Exception)
 
         expect {
           subject.eval %{'RUBY'*100}
-        }.to_not raise_error(Sandbox::SandboxException)
+        }.to_not raise_error(Sandbox::Exception)
       end
     end
   end

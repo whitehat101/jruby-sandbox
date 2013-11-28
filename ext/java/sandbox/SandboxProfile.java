@@ -63,10 +63,10 @@ public class SandboxProfile implements Profile {
   }
 
   public void postBootCleanup(Ruby runtime) {
-    Iterator<String> it = RequireBlacklist.iterator();
     LoadService loadService = runtime.getLoadService();
-    while(it.hasNext())
-      loadService.removeInternalLoadedFeature(it.next());
+    loadService.removeInternalLoadedFeature("rubygems");
+    loadService.removeInternalLoadedFeature("java");
+    loadService.removeInternalLoadedFeature("jruby");
   }
 
 

@@ -1,15 +1,6 @@
-require 'sandbox/sandbox'
 require 'sandbox/version'
-require 'timeout'
-
-# unfortunately, the authors of FakeFS used `extend self` in FileUtils, instead of `module_function`.
-# I fixed it for them
-require 'fakefs/safe'
-(FakeFS::FileUtils.methods - Module.methods - Kernel.methods).each do |module_method_name|
-  FakeFS::FileUtils.send(:module_function, module_method_name)
-end
-FakeFS::File::FNM_SYSCASE = 0
-
+require 'sandbox/sandbox'
+require 'sandbox/fakefs'
 
 module Sandbox
 
@@ -28,16 +19,41 @@ module Sandbox
       Result.new(getStdOut, result)
     end
 
-    def eval_with_timeout(code, timeout=10)
-      require 'timeout'
+    def eval_with_timeout(code, seconds=10)
+      sandbox_timeout(code, seconds) do
+        eval code
+      end
+    end
 
-      timeout_code = <<-RUBY
-        Timeout.timeout(#{timeout}) do
-          #{code}
+  private
+
+    def sandbox_timeout(name, seconds)
+      val, exc = nil
+
+      thread = Thread.start(name) do
+        begin
+          val = yield
+        rescue Exception => exc
         end
-      RUBY
+      end
 
-      eval timeout_code
+      thread.join seconds
+
+      if thread.alive?
+        if thread.respond_to? :kill!
+          thread.kill!
+        else
+          thread.kill
+        end
+
+        raise Sandbox::Exception, "TimeoutError: #{self.class} timed out"
+      end
+
+      if exc
+        raise exc
+      else
+        val
+      end
     end
 
   end
@@ -82,7 +98,6 @@ module Sandbox
 
       FakeFS::FileSystem.clear
     end
-
 
 
     IO_S_METHODS = %w[
