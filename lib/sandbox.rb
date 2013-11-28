@@ -19,20 +19,12 @@ module Sandbox
       Result.new(getStdOut, result)
     end
 
-    def eval_with_timeout(code, seconds=10)
-      sandbox_timeout(code, seconds) do
-        eval code
-      end
-    end
-
-  private
-
-    def sandbox_timeout(name, seconds)
+    def eval_with_timeout(code, seconds = 10)
       val, exc = nil
 
-      thread = Thread.start(name) do
+      thread = Thread.start(code) do
         begin
-          val = yield
+          val = eval code
         rescue Exception => exc
         end
       end
