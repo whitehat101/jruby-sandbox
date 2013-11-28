@@ -8,6 +8,7 @@ require 'fakefs/safe'
 (FakeFS::FileUtils.methods - Module.methods - Kernel.methods).each do |module_method_name|
   FakeFS::FileUtils.send(:module_function, module_method_name)
 end
+FakeFS::File::FNM_SYSCASE = 0
 
 
 module Sandbox

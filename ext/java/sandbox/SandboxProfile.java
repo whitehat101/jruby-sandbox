@@ -39,30 +39,41 @@ public class SandboxProfile implements Profile {
        // "java.rb", "jruby.rb", "win32ole.jar"
   ));
 
+  private class SandboxLoadService extends LoadService {
+    public SandboxLoadService(Ruby runtime) { super(runtime); }
+
+    @Override
+    public void init(java.util.List additionalDirectories) {
+      super.init(additionalDirectories);
+
+      // Add the blacklisted requires to the feature list
+      Iterator<String> it = RequireBlacklist.iterator();
+      while(it.hasNext())
+        addLoadedFeature(it.next());
+    }
+
+    @Override
+    public void loadFromClassLoader(ClassLoader classLoader, String file, boolean wrap) {
+      boolean load = !LoadBlacklist.contains(file);
+      System.err.println("loadFromClassLoader: " + load + " " + file);
+      if(load)
+        super.loadFromClassLoader( classLoader, file, wrap);
+    }
+
+  }
+
+  public void postBootCleanup(Ruby runtime) {
+    Iterator<String> it = RequireBlacklist.iterator();
+    LoadService loadService = runtime.getLoadService();
+    while(it.hasNext())
+      loadService.removeInternalLoadedFeature(it.next());
+  }
+
+
   public LoadServiceCreator loadServiceCreator(){
     return new LoadServiceCreator() {
       public LoadService create(Ruby runtime) {
-        return new LoadService(runtime) {
-
-          @Override
-          public void init(java.util.List additionalDirectories) {
-            super.init(additionalDirectories);
-
-            // Add the blacklisted requires to the feature list
-            Iterator<String> it = RequireBlacklist.iterator();
-            while(it.hasNext())
-              addLoadedFeature(it.next());
-          }
-
-          @Override
-          public void loadFromClassLoader(ClassLoader classLoader, String file, boolean wrap) {
-            boolean load = !LoadBlacklist.contains(file);
-            System.err.println("loadFromClassLoader: " + load + " " + file);
-            if(load)
-              super.loadFromClassLoader( classLoader, file, wrap);
-          }
-
-        };
+        return new SandboxLoadService(runtime);
       }
     };
   }

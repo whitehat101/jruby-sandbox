@@ -60,6 +60,7 @@ public class SandboxFull extends RubyObject {
     // cfg.setLoadPaths(java.util.List<java.lang.String> loadPaths);
 
     wrapped = Ruby.newInstance(cfg);
+    profile.postBootCleanup(wrapped);
 
     RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
     cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
