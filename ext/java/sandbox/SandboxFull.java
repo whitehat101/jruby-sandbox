@@ -41,21 +41,25 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod
   public IRubyObject reload() {
-
+    RubyInstanceConfig externalCfg = getRuntime().getInstanceConfig();
     RubyInstanceConfig cfg = new RubyInstanceConfig();
-    cfg.setObjectSpaceEnabled(getRuntime().getInstanceConfig().isObjectSpaceEnabled());
-    cfg.setInput(getRuntime().getInstanceConfig().getInput());
-    cfg.setError(getRuntime().getInstanceConfig().getError());
+    SandboxProfile profile = new SandboxProfile(this);
     stdOut = new ByteArrayOutputStream();
+
+    cfg.setInput(externalCfg.getInput());
+    cfg.setError(externalCfg.getError());
     cfg.setOutput(new PrintStream(stdOut));
+    cfg.setObjectSpaceEnabled(externalCfg.isObjectSpaceEnabled());
     cfg.setCompatVersion(CompatVersion.RUBY1_9);
     cfg.setScriptFileName("(sandbox)");
-
-    SandboxProfile profile = new SandboxProfile(this);
+    cfg.setBacktraceMask(true);
     cfg.setProfile(profile);
+    cfg.setLoadServiceCreator(profile.loadServiceCreator());
+    // cfg.setEnvironment(java.util.Map newEnvironment);
+    // cfg.setKCode(org.jruby.util.KCode.UTF8); // doesn't affect __ENCODING__
+    // cfg.setLoadPaths(java.util.List<java.lang.String> loadPaths);
 
     wrapped = Ruby.newInstance(cfg);
-    profile.security(wrapped);
 
     RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
     cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
