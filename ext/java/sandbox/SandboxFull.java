@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
+import java.io.IOException;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -27,16 +28,23 @@ import org.jruby.exceptions.RaiseException;
 @JRubyClass(name="Sandbox::Full")
 public class SandboxFull extends RubyObject {
   private Ruby wrapped;
-  private ByteArrayOutputStream stdOut;
+  private ByteArrayOutputStream stdOut, lastOutput;
 
   public SandboxFull(Ruby runtime, RubyClass type) {
     super(runtime, type);
+    stdOut = new ByteArrayOutputStream();
+    lastOutput = new ByteArrayOutputStream();
     reload();
   }
 
   @JRubyMethod
   public RubyString getStdOut() {
-    return wrapped.newString(stdOut.toString());
+    return getRuntime().newString(stdOut.toString());
+  }
+
+  @JRubyMethod
+  public RubyString getLastOut() {
+    return getRuntime().newString(lastOutput.toString());
   }
 
   @JRubyMethod
@@ -44,11 +52,12 @@ public class SandboxFull extends RubyObject {
     RubyInstanceConfig externalCfg = getRuntime().getInstanceConfig();
     RubyInstanceConfig cfg = new RubyInstanceConfig();
     SandboxProfile profile = new SandboxProfile(this);
-    stdOut = new ByteArrayOutputStream();
+    stdOut.reset();
+    lastOutput.reset();
 
     cfg.setInput(externalCfg.getInput());
     cfg.setError(externalCfg.getError());
-    cfg.setOutput(new PrintStream(stdOut));
+    cfg.setOutput(new PrintStream(lastOutput));
     cfg.setObjectSpaceEnabled(externalCfg.isObjectSpaceEnabled());
     cfg.setCompatVersion(CompatVersion.RUBY1_9);
     cfg.setScriptFileName("(sandbox)");
@@ -70,6 +79,7 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod(required=1)
   public IRubyObject eval(IRubyObject str) {
+    lastOutput.reset();
     try {
       IRubyObject result = wrapped.evalScriptlet("#encoding: utf-8\n"+str.asJavaString(), wrapped.getCurrentContext().getCurrentScope());
       IRubyObject unboxedResult = unbox(result);
@@ -82,6 +92,10 @@ public class SandboxFull extends RubyObject {
       e.printStackTrace();
       getRuntime().getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);
       return getRuntime().getNil();
+    } finally {
+      try { lastOutput.writeTo(stdOut); } catch (IOException e) {
+        System.err.println("IOException while copying lastOutput to stdOut");
+      }
     }
   }
 
