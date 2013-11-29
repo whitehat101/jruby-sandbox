@@ -20,32 +20,24 @@ module Sandbox
     end
 
     def eval_with_timeout(code, seconds = 10)
-      val, exc = nil
+      sandboxResult, sandboxException = nil
 
       thread = Thread.start(code) do
         begin
-          val = eval code
-        rescue Exception => exc
+          sandboxResult = eval code
+        rescue Exception => sandboxException
         end
       end
 
       thread.join seconds
 
       if thread.alive?
-        if thread.respond_to? :kill!
-          thread.kill!
-        else
-          thread.kill
-        end
-
+        thread.respond_to?(:kill!) ? thread.kill! : thread.kill
         raise Sandbox::Exception, "TimeoutError: #{self.class} timed out"
       end
 
-      if exc
-        raise exc
-      else
-        val
-      end
+      raise sandboxException if sandboxException
+      sandboxResult
     end
 
   end
@@ -66,7 +58,6 @@ module Sandbox
       keep_methods(:FalseClass, FALSECLASS_METHODS)
       keep_methods(:Enumerable, ENUMERABLE_METHODS)
       keep_methods(:String, STRING_METHODS)
-
     end
 
     def activate_fakefs
