@@ -2,8 +2,8 @@ package sandbox;
 
 import org.jruby.Ruby;
 import org.jruby.Profile;
-import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.load.LoadService;
+import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.RubyInstanceConfig.LoadServiceCreator;
 import java.util.Set;
 import java.util.HashSet;
@@ -55,7 +55,7 @@ public class SandboxProfile implements Profile {
     @Override
     public void loadFromClassLoader(ClassLoader classLoader, String file, boolean wrap) {
       boolean load = !LoadBlacklist.contains(file);
-      System.err.println("loadFromClassLoader: " + load + " " + file);
+      // System.err.println("loadFromClassLoader: " + load + " " + file);
       if(load)
         super.loadFromClassLoader( classLoader, file, wrap);
     }
@@ -79,36 +79,36 @@ public class SandboxProfile implements Profile {
   }
 
 
-  public boolean allowBuiltin (String name) {
-    boolean b = !BuiltinBlacklist.contains(name);
-    System.err.println("allowBuiltin: " + b + " " + name);
-    return b;
-  }
-  public boolean allowClass   (String name) {
-    boolean b = !ClassBlacklist.contains(name);
-    System.err.println("  allowClass: " + b + " " + name);
-    return b;
-  }
-  public boolean allowModule  (String name) {
-    boolean b = !ModuleBlacklist.contains(name);
-    System.err.println(" allowModule: " + b + " " + name);
-    return b;
-  }
-  public boolean allowLoad    (String name) {
-    boolean b = !LoadBlacklist.contains(name);
-    System.err.println("   allowLoad: " + b + " " + name);
-    return b;
-  }
-  public boolean allowRequire (String name) {
-    boolean b = !RequireBlacklist.contains(name);
-    System.err.println("allowRequire: " + b + " " + name);
-    return b;
-  }
+  // public boolean allowBuiltin (String name) {
+  //   boolean b = !BuiltinBlacklist.contains(name);
+  //   System.err.println("allowBuiltin: " + b + " " + name);
+  //   return b;
+  // }
+  // public boolean allowClass   (String name) {
+  //   boolean b = !ClassBlacklist.contains(name);
+  //   System.err.println("  allowClass: " + b + " " + name);
+  //   return b;
+  // }
+  // public boolean allowModule  (String name) {
+  //   boolean b = !ModuleBlacklist.contains(name);
+  //   System.err.println(" allowModule: " + b + " " + name);
+  //   return b;
+  // }
+  // public boolean allowLoad    (String name) {
+  //   boolean b = !LoadBlacklist.contains(name);
+  //   System.err.println("   allowLoad: " + b + " " + name);
+  //   return b;
+  // }
+  // public boolean allowRequire (String name) {
+  //   boolean b = !RequireBlacklist.contains(name);
+  //   System.err.println("allowRequire: " + b + " " + name);
+  //   return b;
+  // }
 
-  // public boolean allowBuiltin (String name) { return !BuiltinBlacklist.contains(name); }
-  // public boolean allowClass   (String name) { return   !ClassBlacklist.contains(name); }
-  // public boolean allowModule  (String name) { return  !ModuleBlacklist.contains(name); }
-  // public boolean allowLoad    (String name) { return    !LoadBlacklist.contains(name); }
-  // public boolean allowRequire (String name) { return !RequireBlacklist.contains(name); }
+  public boolean allowLoad    (String name) { return    !LoadBlacklist.contains(name); }
+  public boolean allowClass   (String name) { return   !ClassBlacklist.contains(name); }
+  public boolean allowModule  (String name) { return  !ModuleBlacklist.contains(name); }
+  public boolean allowBuiltin (String name) { return !BuiltinBlacklist.contains(name); }
+  public boolean allowRequire (String name) { return !RequireBlacklist.contains(name); }
 
 }

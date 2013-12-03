@@ -4,19 +4,19 @@ require 'sandbox/fakefs'
 
 module Sandbox
 
-  def self.new
-    Full.new
+  def self.new opts={}
+    Full.new opts
   end
 
-  def self.safe
-    Safe.new
+  def self.safe opts={}
+    Safe.new opts
   end
 
   class Full
-    Result = Struct.new(:output, :result, :exception)
+    # Result = Struct.new(:output, :result, :exception)
     def eval_with_result(code)
       result = eval_with_timeout(code)
-      Result.new(getStdOut, result)
+      Result.new(result,getStdOut)
     end
 
     def eval_with_timeout(code, seconds = 10)

@@ -10,20 +10,23 @@ import java.io.IOException;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
-import org.jruby.RubyInstanceConfig;
+import org.jruby.RubyHash;
 import org.jruby.RubyKernel;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
+import org.jruby.RubyStruct;
+import org.jruby.RubySymbol;
+import org.jruby.RubyInstanceConfig;
+import org.jruby.runtime.Block;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.exceptions.RaiseException;
+import org.jruby.common.IRubyWarnings;
 import org.jruby.CompatVersion;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.internal.runtime.methods.DynamicMethod;
-import org.jruby.runtime.Block;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.common.IRubyWarnings;
-import org.jruby.exceptions.RaiseException;
-
 
 @JRubyClass(name="Sandbox::Full")
 public class SandboxFull extends RubyObject {
@@ -45,6 +48,26 @@ public class SandboxFull extends RubyObject {
   @JRubyMethod
   public RubyString getLastOut() {
     return getRuntime().newString(lastOutput.toString());
+  }
+
+  // @JRubyMethod(required=0)
+  // public IRubyObject initialize(ThreadContext context) {
+  //   System.err.println("SandboxFull#new (no args)");
+  //   return context.nil;
+  // }
+
+  @JRubyMethod
+  public IRubyObject initialize(ThreadContext context, IRubyObject value) {
+    RubyHash opts = value.convertToHash();
+    System.err.println("SandboxFull#new (arg) = " + opts.to_s(context).asJavaString());
+    System.err.println("SandboxFull#new (arg) = " + opts.keySet().toString());
+
+    // if(opts.containsKey(context.runtime.newSymbol("LOAD_PATH")))
+    if(opts.containsKey(getRuntime().newSymbol("LOAD_PATH"))){
+      opts.get(getRuntime().newSymbol("LOAD_PATH"));
+      System.err.println("SandboxFull#new (arg) = LOAD_PATH");
+    }
+    return context.nil;
   }
 
   @JRubyMethod
@@ -71,8 +94,11 @@ public class SandboxFull extends RubyObject {
     wrapped = Ruby.newInstance(cfg);
     profile.postBootCleanup(wrapped);
 
-    RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
-    cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
+    wrapped
+      .defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator())
+      .defineAnnotatedMethods(BoxedClass.class);
+    // RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
+    // cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
 
     return this;
   }
@@ -89,14 +115,34 @@ public class SandboxFull extends RubyObject {
       String path = e.getException().type().getName();
       throw rubyException( getRuntime().getNil(), "Sandbox::Exception", path + ": " + msg);
     } catch (Exception e) {
+      System.err.println("NativeException: " + e);
       e.printStackTrace();
       getRuntime().getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);
       return getRuntime().getNil();
     } finally {
       try { lastOutput.writeTo(stdOut); } catch (IOException e) {
+        // I can't imagine why this would actually happen
         System.err.println("IOException while copying lastOutput to stdOut");
       }
     }
+  }
+
+  @JRubyMethod(required=1)
+  public IRubyObject exec(IRubyObject str) {
+    RubyClass resultClass = (RubyClass) getRuntime().getClassFromPath("Sandbox::Result");
+    RubyStruct resultStruct = RubyStruct.newStruct(resultClass, Block.NULL_BLOCK);
+
+    try {
+      // Set :result
+      resultStruct.set(eval(str),0);
+    } catch (RaiseException e) {
+      String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
+      // Set :exception
+      resultStruct.set(getRuntime().newString(msg),2);
+    }
+    // Set :output
+    resultStruct.set(getRuntime().newString(lastOutput.toString()),1);
+    return resultStruct;
   }
 
   @JRubyMethod(name="import", required=1)
