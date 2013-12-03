@@ -2,6 +2,7 @@ package sandbox;
 
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Block;
 
@@ -16,11 +17,11 @@ public class BoxedClass {
 
     // If the linked object doesn't respond to the message, NoMethodError
     if( !SandboxFull.getLinkedObject(recv).respondsTo(name) )
-      throw SandboxFull.rubyException( recv, "NoMethodError", name );
+      throw new RaiseException( recv.getRuntime(), recv.getRuntime().getNoMethodError(), name, false );
 
     // Never access to eval on linked objects
     if( name == "eval" )
-      throw SandboxFull.rubyException( recv, "SecurityError", "eval not allowed on " + recv.asString().asJavaString() );
+      throw new RaiseException( recv.getRuntime(), recv.getRuntime().getSecurityError(), "eval not allowed on " + recv.asString().asJavaString(), false );
 
     SandboxFull box = (SandboxFull) SandboxFull.getLinkedBox(recv);
     return box.runMethod(recv, name, args2, block);

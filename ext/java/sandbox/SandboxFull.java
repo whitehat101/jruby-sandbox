@@ -33,21 +33,22 @@ public class SandboxFull extends RubyObject {
   private Ruby wrapped;
   private ByteArrayOutputStream stdOut, lastOutput;
 
+  // Ruby Object Cache
+  private RubyClass sandboxResultClass, sandboxExceptionClass;
+  private RubySymbol loadPathSym;
+
   public SandboxFull(Ruby runtime, RubyClass type) {
     super(runtime, type);
+    // Output Buffers
     stdOut = new ByteArrayOutputStream();
     lastOutput = new ByteArrayOutputStream();
+
+    // Object Cache
+    sandboxResultClass = (RubyClass) runtime.getClassFromPath("Sandbox::Result");
+    sandboxExceptionClass = (RubyClass) runtime.getClassFromPath("Sandbox::Exception");
+    loadPathSym = runtime.newSymbol("LOAD_PATH");
+
     reload();
-  }
-
-  @JRubyMethod
-  public RubyString getStdOut() {
-    return getRuntime().newString(stdOut.toString());
-  }
-
-  @JRubyMethod
-  public RubyString getLastOut() {
-    return getRuntime().newString(lastOutput.toString());
   }
 
   // @JRubyMethod(required=0)
@@ -59,12 +60,12 @@ public class SandboxFull extends RubyObject {
   @JRubyMethod
   public IRubyObject initialize(ThreadContext context, IRubyObject value) {
     RubyHash opts = value.convertToHash();
-    System.err.println("SandboxFull#new (arg) = " + opts.to_s(context).asJavaString());
-    System.err.println("SandboxFull#new (arg) = " + opts.keySet().toString());
+    // System.err.println("SandboxFull#new (arg) = " + opts.to_s(context).asJavaString());
+    // System.err.println("SandboxFull#new (arg) = " + opts.keySet().toString());
 
     // if(opts.containsKey(context.runtime.newSymbol("LOAD_PATH")))
-    if(opts.containsKey(getRuntime().newSymbol("LOAD_PATH"))){
-      opts.get(getRuntime().newSymbol("LOAD_PATH"));
+    if(opts.containsKey(loadPathSym)){
+      opts.get(loadPathSym);
       System.err.println("SandboxFull#new (arg) = LOAD_PATH");
     }
     return context.nil;
@@ -94,11 +95,8 @@ public class SandboxFull extends RubyObject {
     wrapped = Ruby.newInstance(cfg);
     profile.postBootCleanup(wrapped);
 
-    wrapped
-      .defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator())
-      .defineAnnotatedMethods(BoxedClass.class);
-    // RubyClass cBoxedClass = wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator());
-    // cBoxedClass.defineAnnotatedMethods(BoxedClass.class);
+    wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator())
+           .defineAnnotatedMethods(BoxedClass.class);
 
     return this;
   }
@@ -113,7 +111,7 @@ public class SandboxFull extends RubyObject {
     } catch (RaiseException e) {
       String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
       String path = e.getException().type().getName();
-      throw rubyException( getRuntime().getNil(), "Sandbox::Exception", path + ": " + msg);
+      throw new RaiseException( getRuntime(), sandboxExceptionClass, path + ": " + msg, false );
     } catch (Exception e) {
       System.err.println("NativeException: " + e);
       e.printStackTrace();
@@ -129,20 +127,29 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod(required=1)
   public IRubyObject exec(IRubyObject str) {
-    RubyClass resultClass = (RubyClass) getRuntime().getClassFromPath("Sandbox::Result");
-    RubyStruct resultStruct = RubyStruct.newStruct(resultClass, Block.NULL_BLOCK);
+    RubyStruct resultStruct = RubyStruct.newStruct(sandboxResultClass, Block.NULL_BLOCK);
 
     try {
       // Set :result
-      resultStruct.set(eval(str),0);
+      resultStruct.set(eval(str), 0);
     } catch (RaiseException e) {
-      String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
       // Set :exception
-      resultStruct.set(getRuntime().newString(msg),2);
+      String message = e.getException().message(getRuntime().getCurrentContext()).asJavaString();
+      resultStruct.set(getRuntime().newString(message), 2);
     }
     // Set :output
-    resultStruct.set(getRuntime().newString(lastOutput.toString()),1);
+    resultStruct.set(getLastOut(), 1);
     return resultStruct;
+  }
+
+  @JRubyMethod
+  public RubyString getStdOut() {
+    return getRuntime().newString(stdOut.toString());
+  }
+
+  @JRubyMethod
+  public RubyString getLastOut() {
+    return getRuntime().newString(lastOutput.toString());
   }
 
   @JRubyMethod(name="import", required=1)
@@ -362,10 +369,10 @@ public class SandboxFull extends RubyObject {
     return object;
   }
 
-  protected static RaiseException rubyException(IRubyObject recv, String klass, String message) {
-    Ruby runtime = recv.getRuntime();
-    return new RaiseException( runtime, (RubyClass) runtime.getClassFromPath(klass), message, false );
-  }
+  // protected static RaiseException rubyException(IRubyObject recv, String klass, String message) {
+  //   Ruby runtime = recv.getRuntime();
+  //   return new RaiseException( runtime, (RubyClass) runtime.getClassFromPath(klass), message, false );
+  // }
 
   private void linkObject(IRubyObject runtimeObject, IRubyObject wrappedObject) {
     wrappedObject.getInstanceVariables().setInstanceVariable("__link__", runtimeObject);
