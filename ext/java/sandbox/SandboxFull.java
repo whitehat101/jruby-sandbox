@@ -30,15 +30,17 @@ import org.jruby.internal.runtime.methods.DynamicMethod;
 
 @JRubyClass(name="Sandbox::Full")
 public class SandboxFull extends RubyObject {
-  private Ruby wrapped;
+  private Ruby runtime, sandbox;
   private ByteArrayOutputStream stdOut, lastOutput;
 
   // Ruby Object Cache
   private RubyClass sandboxResultClass, sandboxExceptionClass;
   private RubySymbol loadPathSym;
 
-  public SandboxFull(Ruby runtime, RubyClass type) {
-    super(runtime, type);
+  public SandboxFull(Ruby _runtime, RubyClass type) {
+    super(_runtime, type);
+    runtime = _runtime;
+
     // Output Buffers
     stdOut = new ByteArrayOutputStream();
     lastOutput = new ByteArrayOutputStream();
@@ -73,7 +75,7 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod
   public IRubyObject reload() {
-    RubyInstanceConfig externalCfg = getRuntime().getInstanceConfig();
+    RubyInstanceConfig externalCfg = runtime.getInstanceConfig();
     RubyInstanceConfig cfg = new RubyInstanceConfig();
     SandboxProfile profile = new SandboxProfile(this);
     stdOut.reset();
@@ -92,10 +94,10 @@ public class SandboxFull extends RubyObject {
     // cfg.setKCode(org.jruby.util.KCode.UTF8); // doesn't affect __ENCODING__
     // cfg.setLoadPaths(java.util.List<java.lang.String> loadPaths);
 
-    wrapped = Ruby.newInstance(cfg);
-    profile.postBootCleanup(wrapped);
+    sandbox = Ruby.newInstance(cfg);
+    profile.postBootCleanup(sandbox);
 
-    wrapped.defineClass("BoxedClass", wrapped.getObject(), wrapped.getObject().getAllocator())
+    sandbox.defineClass("BoxedClass", sandbox.getObject(), sandbox.getObject().getAllocator())
            .defineAnnotatedMethods(BoxedClass.class);
 
     return this;
@@ -105,18 +107,18 @@ public class SandboxFull extends RubyObject {
   public IRubyObject eval(IRubyObject str) {
     lastOutput.reset();
     try {
-      IRubyObject result = wrapped.evalScriptlet("#encoding: utf-8\n"+str.asJavaString(), wrapped.getCurrentContext().getCurrentScope());
+      IRubyObject result = sandbox.evalScriptlet("#encoding: utf-8\n"+str.asJavaString(), sandbox.getCurrentContext().getCurrentScope());
       IRubyObject unboxedResult = unbox(result);
       return unboxedResult;
     } catch (RaiseException e) {
-      String msg = e.getException().callMethod(wrapped.getCurrentContext(), "message").asJavaString();
+      String msg = e.getException().callMethod(sandbox.getCurrentContext(), "message").asJavaString();
       String path = e.getException().type().getName();
-      throw new RaiseException( getRuntime(), sandboxExceptionClass, path + ": " + msg, false );
+      throw new RaiseException( runtime, sandboxExceptionClass, path + ": " + msg, false );
     } catch (Exception e) {
       System.err.println("NativeException: " + e);
       e.printStackTrace();
-      getRuntime().getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);
-      return getRuntime().getNil();
+      runtime.getWarnings().warn(IRubyWarnings.ID.MISCELLANEOUS, "NativeException: " + e);
+      return runtime.getNil();
     } finally {
       try { lastOutput.writeTo(stdOut); } catch (IOException e) {
         // I can't imagine why this would actually happen
@@ -134,8 +136,8 @@ public class SandboxFull extends RubyObject {
       resultStruct.set(eval(str), 0);
     } catch (RaiseException e) {
       // Set :exception
-      String message = e.getException().message(getRuntime().getCurrentContext()).asJavaString();
-      resultStruct.set(getRuntime().newString(message), 2);
+      String message = e.getException().message(runtime.getCurrentContext()).asJavaString();
+      resultStruct.set(runtime.newString(message), 2);
     }
     // Set :output
     resultStruct.set(getLastOut(), 1);
@@ -144,50 +146,50 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod
   public RubyString getStdOut() {
-    return getRuntime().newString(stdOut.toString());
+    return runtime.newString(stdOut.toString());
   }
 
   @JRubyMethod
   public RubyString getLastOut() {
-    return getRuntime().newString(lastOutput.toString());
+    return runtime.newString(lastOutput.toString());
   }
 
   @JRubyMethod(name="import", required=1)
   public IRubyObject _import(IRubyObject klass) {
     if (!(klass instanceof RubyModule)) {
-      throw getRuntime().newTypeError(klass, getRuntime().getClass("Module"));
+      throw runtime.newTypeError(klass, runtime.getClass("Module"));
     }
     String name = ((RubyModule) klass).getName();
     importClassPath(name, false);
-    return getRuntime().getNil();
+    return runtime.getNil();
   }
 
   @JRubyMethod(required=1)
   public IRubyObject ref(IRubyObject klass) {
     if (!(klass instanceof RubyModule)) {
-      throw getRuntime().newTypeError(klass, getRuntime().getClass("Module"));
+      throw runtime.newTypeError(klass, runtime.getClass("Module"));
     }
     String name = ((RubyModule) klass).getName();
     importClassPath(name, true);
-    return getRuntime().getNil();
+    return runtime.getNil();
   }
 
   private RubyModule importClassPath(String path, final boolean link) {
-    RubyModule runtimeModule = getRuntime().getObject();
-    RubyModule wrappedModule = wrapped.getObject();
+    RubyModule runtimeModule = runtime.getObject();
+    RubyModule wrappedModule = sandbox.getObject();
 
     if (path.startsWith("#")) {
-      throw getRuntime().newArgumentError("can't import anonymous class " + path);
+      throw runtime.newArgumentError("can't import anonymous class " + path);
     }
 
     for (String name : path.split("::")) {
       runtimeModule = (RubyModule) runtimeModule.getConstantAt(name);
       // Create the module when it did not exist yet...
-      if (wrappedModule.const_defined_p(wrapped.getCurrentContext(), wrapped.newString(name)).isFalse()) {
+      if (wrappedModule.const_defined_p(sandbox.getCurrentContext(), sandbox.newString(name)).isFalse()) {
         // The BoxedClass takes the place of Object as top of the inheritance
         // hierarchy. As a result, we can intercept all new instances that are
         // created and all method_missing calls.
-        RubyModule sup = wrapped.getClass("BoxedClass");
+        RubyModule sup = sandbox.getClass("BoxedClass");
         if (!link && runtimeModule instanceof RubyClass) {
           // If we're importing a class, recursively import all of its
           // superclasses as well.
@@ -195,12 +197,12 @@ public class SandboxFull extends RubyObject {
         }
 
         RubyClass klass = (RubyClass) sup;
-        if (wrappedModule == wrapped.getObject()) {
+        if (wrappedModule == sandbox.getObject()) {
 
           if (link || runtimeModule instanceof RubyClass){ // if this is a ref and not an import
-            wrappedModule = wrapped.defineClass(name, klass, klass.getAllocator());
+            wrappedModule = sandbox.defineClass(name, klass, klass.getAllocator());
           } else {
-            wrappedModule = wrapped.defineModule(name);
+            wrappedModule = sandbox.defineModule(name);
           }
 
         } else {
@@ -219,7 +221,7 @@ public class SandboxFull extends RubyObject {
       // Check the consistency of the hierarchy
       if (runtimeModule instanceof RubyClass) {
         if (!link && !runtimeModule.getSuperClass().getName().equals(wrappedModule.getSuperClass().getName())) {
-          throw getRuntime().newTypeError("superclass mismatch for class " + runtimeModule.getSuperClass().getName());
+          throw runtime.newTypeError("superclass mismatch for class " + runtimeModule.getSuperClass().getName());
         }
       }
 
@@ -240,7 +242,7 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod(required=2)
   public IRubyObject keep_methods(IRubyObject className, IRubyObject methods) {
-    RubyModule module = wrapped.getModule(className.asJavaString());
+    RubyModule module = sandbox.getModule(className.asJavaString());
     if (module != null) {
       keepMethods(module, methods.convertToArray());
     }
@@ -249,7 +251,7 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod(required=2)
   public IRubyObject keep_singleton_methods(IRubyObject className, IRubyObject methods) {
-    RubyModule module = wrapped.getModule(className.asJavaString()).getSingletonClass();
+    RubyModule module = sandbox.getModule(className.asJavaString()).getSingletonClass();
     if (module != null) {
       keepMethods(module, methods.convertToArray());
     }
@@ -267,46 +269,46 @@ public class SandboxFull extends RubyObject {
 
   @JRubyMethod(required=2)
   public IRubyObject remove_method(IRubyObject className, IRubyObject methodName) {
-    RubyModule module = wrapped.getModule(className.asJavaString());
+    RubyModule module = sandbox.getModule(className.asJavaString());
     if (module != null) {
       removeMethod(module, methodName.asJavaString());
     }
-    return getRuntime().getNil();
+    return runtime.getNil();
   }
 
   @JRubyMethod(required=2)
   public IRubyObject remove_singleton_method(IRubyObject className, IRubyObject methodName) {
-    RubyModule module = wrapped.getModule(className.asJavaString()).getSingletonClass();
+    RubyModule module = sandbox.getModule(className.asJavaString()).getSingletonClass();
     if (module != null) {
       removeMethod(module, methodName.asJavaString());
     }
-    return getRuntime().getNil();
+    return runtime.getNil();
   }
 
   private void removeMethod(RubyModule module, String methodName) {
     // System.err.println("removing method " + methodName + " from " + module.inspect().asJavaString());
-    module.removeMethod(wrapped.getCurrentContext(), methodName);
+    module.removeMethod(sandbox.getCurrentContext(), methodName);
   }
 
   @JRubyMethod(required=1)
   public IRubyObject load(IRubyObject str) {
     try {
-      wrapped.getLoadService().load(str.asJavaString(), true);
-      return getRuntime().getTrue();
+      sandbox.getLoadService().load(str.asJavaString(), true);
+      return runtime.getTrue();
     } catch (RaiseException e) {
       e.printStackTrace();
-      return getRuntime().getFalse();
+      return runtime.getFalse();
     }
   }
 
   @JRubyMethod(required=1)
   public IRubyObject require(IRubyObject str) {
     try {
-      IRubyObject result = RubyKernel.require(wrapped.getKernel(), wrapped.newString(str.asJavaString()), Block.NULL_BLOCK);
+      IRubyObject result = RubyKernel.require(sandbox.getKernel(), sandbox.newString(str.asJavaString()), Block.NULL_BLOCK);
       return unbox(result);
     } catch (RaiseException e) {
       e.printStackTrace();
-      return getRuntime().getFalse();
+      return runtime.getFalse();
     }
   }
 
@@ -322,7 +324,7 @@ public class SandboxFull extends RubyObject {
     if (obj.isImmediate()) {
       return cross(obj);
     } else {
-      // If this object already existed and was returned from the wrapped
+      // If this object already existed and was returned from the sandbox
       // runtime on an earlier occasion, it will already contain a link to its
       // brother in the regular runtime and we can safely return that link.
       IRubyObject link = getLinkedObject(obj);
@@ -333,7 +335,7 @@ public class SandboxFull extends RubyObject {
 
       // Is the class already known on both sides of the fence?
       IRubyObject klass = constFind(obj.getMetaClass().getRealClass().getName());
-      link = getRuntime().getNil();
+      link = runtime.getNil();
       if (!klass.isNil()) {
         link = getLinkedObject(klass);
       }
@@ -349,8 +351,8 @@ public class SandboxFull extends RubyObject {
   }
 
   private IRubyObject cross(IRubyObject obj) {
-    IRubyObject dumped = wrapped.getModule("Marshal").callMethod(wrapped.getCurrentContext(), "dump", obj);
-    return getRuntime().getModule("Marshal").callMethod(getRuntime().getCurrentContext(), "load", dumped);
+    IRubyObject dumped = sandbox.getModule("Marshal").callMethod(sandbox.getCurrentContext(), "dump", obj);
+    return runtime.getModule("Marshal").callMethod(runtime.getCurrentContext(), "load", dumped);
   }
 
   protected static IRubyObject getLinkedObject(IRubyObject arg) {
@@ -381,9 +383,9 @@ public class SandboxFull extends RubyObject {
 
   private IRubyObject constFind(String path) {
     try {
-      return wrapped.getClassFromPath(path);
+      return sandbox.getClassFromPath(path);
     } catch (Exception e) {
-      return wrapped.getNil();
+      return sandbox.getNil();
     }
   }
 
@@ -393,7 +395,7 @@ public class SandboxFull extends RubyObject {
       args2[i] = unbox(args[i]);
     }
     IRubyObject recv2 = unbox(recv);
-    IRubyObject result = recv2.callMethod(getRuntime().getCurrentContext(), name, args2, block);
+    IRubyObject result = recv2.callMethod(runtime.getCurrentContext(), name, args2, block);
     return rebox(result);
   }
 }
