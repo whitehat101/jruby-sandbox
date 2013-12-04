@@ -12,6 +12,11 @@ describe Sandbox do
 
     it { should_not be_nil }
     it { should be_an_instance_of(Sandbox::Full) }
+    it "accepts an optional argument" do
+      Sandbox.new
+      Sandbox.new :LOAD_PATH => ['/foo','/bar']
+      # (2+2).should be 5
+    end
   end
 
   describe ".safe" do
@@ -27,6 +32,15 @@ describe Sandbox do
       expect {
         subject.eval('`echo hello`')
       }.to raise_error(Sandbox::Exception)
+    end
+
+    it 'backticks with exec sets exception' do
+      subject.activate!
+      subject.exec('`echo hello`').exception.should_not be_nil
+    end
+
+    it "exec should catch exceptions" do
+      subject.exec('File').exception.should == "NameError: uninitialized constant File"
     end
 
     it "should activate FakeFS inside the sandbox (and not allow it to be deactivated)" do
